@@ -92,7 +92,8 @@ jobs:
         uses: actions/checkout@v5
         with:
           ref: ${{ inputs.pipeline_branch }}
-          repository: ${{ github.repository_owner }}/qubership-test-pipelines
+          # Use upstream repo; github.repository_owner points at the fork when tests run from a fork.
+          repository: Netcracker/qubership-test-pipelines
           path: qubership-test-pipelines
 
       - name: Get latest tag
@@ -100,7 +101,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_TAG=$(gh api repos/${{ inputs.repository_name }}/releases/latest --jq '.tag_name')
+          # Forks often have no Releases; pgskipper-operator-demo has none on GitHub — use main operator releases for matrix.
+          LATEST_TAG=$(gh api repos/Netcracker/pgskipper-operator/releases/latest --jq '.tag_name')
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "Latest tag: $LATEST_TAG"
 
