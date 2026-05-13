@@ -81,7 +81,11 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          LATEST_TAG=$(gh api repos/${{ inputs.repository_name }}/releases/latest --jq '.tag_name')
+          if LATEST_TAG=$(gh api repos/${{ inputs.repository_name }}/releases/latest --jq '.tag_name' 2>/dev/null); then
+            :
+          else
+            LATEST_TAG=""
+          fi
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "Latest tag: $LATEST_TAG"
 
@@ -90,7 +94,14 @@ jobs:
         working-directory: ${{ github.workspace }}/qubership-test-pipelines
         run: |
           chmod +x ./scripts/matrix.sh
-          ./scripts/matrix.sh "${{ steps.get-latest-tag.outputs.latest_tag }}" ./workflow-config/zookeeper.yaml "${{ inputs.service_branch }}"
+          echo "latest_tag(output)='${{ steps.get-latest-tag.outputs.latest_tag }}'"
+          echo "service_branch(input)='${{ inputs.service_branch }}'"
+          LATEST_TAG="${{ steps.get-latest-tag.outputs.latest_tag }}"
+          if [[ -z "$LATEST_TAG" ]]; then
+            LATEST_TAG="${{ inputs.service_branch }}"
+          fi
+          echo "using latest_tag='$LATEST_TAG' config='./workflow-config/zookeeper.yaml'"
+          ./scripts/matrix.sh "$LATEST_TAG" ./workflow-config/zookeeper.yaml "${{ inputs.service_branch }}"
 
   Zookeeper-Test-Cases:
     runs-on: ${{ inputs.runner_type }}
