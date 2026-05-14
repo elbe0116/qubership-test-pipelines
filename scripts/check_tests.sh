@@ -23,8 +23,12 @@ check_tests() {
     status=$(kubectl get pod "$test_pod" -n "$namespace" -o jsonpath="{.status.phase}")
     echo "Pod status: $status"
 
-    logs=$(kubectl logs "$test_pod" -n "$namespace")
+    # Avoid pulling unbounded logs on every poll (slow + huge in Actions UI / memory).
+    # Robot "Report: ... html" appears near the end; a large tail is enough to detect completion.
+    local logs
+    logs=$(kubectl logs "$test_pod" -n "$namespace" --tail=12000 2>/dev/null || true)
     if [[ "$logs" =~ Report.*html ]]; then
+      mkdir -p "$(dirname "$file_name")" 2>/dev/null || true
       echo "$logs" > "$file_name"
       echo "📄 TEST LOGS:"
       echo "$logs"
@@ -49,7 +53,9 @@ check_tests() {
         exit 0
       fi
     else
-       #Tests are still running
+       #Tests are still running — show recent output in CI each poll (same tail window)
+       echo "⏳ Tests still in progress — last 80 lines of logs (tail=12000 window):"
+       echo "$logs" | tail -n 80
        exit 1
     fi
 }
