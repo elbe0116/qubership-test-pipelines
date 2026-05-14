@@ -317,6 +317,37 @@ runs:
           fi
         done
 
+    - name: Dump test pod diagnostics on failure
+      if: inputs.check_tests == 'true'
+      shell: bash
+      # language=bash
+      run: |
+        # ▶️ When verify times out or tests fail, check_tests.sh often returns 1 without printing logs.
+        # Emit describe + log tail here so GitHub Actions log is usable without cluster access.
+        if [[ "${ERROR_FLAG:-false}" != "true" ]]; then
+          exit 0
+        fi
+        ns="${{ inputs.namespace }}"
+        test_pod=""
+        while read -r pod; do
+          [[ -z "$pod" ]] && continue
+          if [[ "$pod" == *tests* ]]; then
+            test_pod="$pod"
+            break
+          fi
+        done < <(kubectl get pods --no-headers -o custom-columns=":metadata.name" -n "$ns" 2>/dev/null || true)
+        if [[ -z "$test_pod" ]]; then
+          echo "::warning:: No pod with 'tests' in name in namespace $ns"
+          kubectl get pods -n "$ns" -o wide 2>/dev/null || true
+          exit 0
+        fi
+        echo "::group::kubectl describe pod/$test_pod -n $ns"
+        kubectl describe pod "$test_pod" -n "$ns" 2>&1 || true
+        echo "::endgroup::"
+        echo "::group::kubectl logs $test_pod -n $ns (tail 500)"
+        kubectl logs "$test_pod" -n "$ns" --tail=500 2>&1 || true
+        echo "::endgroup::"
+
     - name: Check job status
       shell: bash
       # language=bash
