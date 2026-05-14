@@ -158,7 +158,6 @@ jobs:
           resource_folder: ""
           test_tags: ${{ inputs.test_tags }}
           atp_storage_username: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
-          atp_storage_password: ${{ secrets.AWS_S3_ACCESS_KEY_SECRET }}
 
       - name: Get Installed Zookeeper CRD name
         uses: ./qubership-test-pipelines/actions/shared/get_crds
@@ -267,7 +266,6 @@ jobs:
           resource_folder: ""
           test_tags: ${{ inputs.test_tags }}
           atp_storage_username: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
-          atp_storage_password: ${{ secrets.AWS_S3_ACCESS_KEY_SECRET }}
 
       - name: Get Upgraded Zookeeper CRD name
         uses: ./qubership-test-pipelines/actions/shared/get_crds
@@ -367,7 +365,6 @@ jobs:
           resource_folder: ""
           test_tags: ${{ inputs.test_tags }}
           atp_storage_username: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
-          atp_storage_password: ${{ secrets.AWS_S3_ACCESS_KEY_SECRET }}
 
       - name: Get Installed Zookeeper CRD name
         uses: ./qubership-test-pipelines/actions/shared/get_crds
@@ -454,7 +451,6 @@ jobs:
           restricted: false
           test_tags: ${{ inputs.test_tags }}
           atp_storage_username: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
-          atp_storage_password: ${{ secrets.AWS_S3_ACCESS_KEY_SECRET }}
 
       - name: Get Installed Zookeeper CRD name
         uses: ./qubership-test-pipelines/actions/shared/get_crds
@@ -518,7 +514,6 @@ jobs:
           resource_folder: ""
           test_tags: ${{ inputs.test_tags }}
           atp_storage_username: ${{ secrets.AWS_S3_ACCESS_KEY_ID }}
-          atp_storage_password: ${{ secrets.AWS_S3_ACCESS_KEY_SECRET }}
 
       - name: Get Installed Zookeeper CRD name
         uses: ./qubership-test-pipelines/actions/shared/get_crds
