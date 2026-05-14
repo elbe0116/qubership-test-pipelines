@@ -68,6 +68,19 @@ inputs:
     required: true
     default: ""
 
+  atp_storage_username:
+    description: |
+      Optional value for Helm integrationTests.atpReport.atpStorage.username (e.g. S3 access key).
+      Pass from workflow secrets; leave empty to use only values from -f template.
+    required: false
+    default: ""
+
+  atp_storage_password:
+    description: |
+      Optional value for Helm integrationTests.atpReport.atpStorage.password (e.g. S3 secret key).
+    required: false
+    default: ""
+
 
 runs:
   using: composite
@@ -260,16 +273,28 @@ runs:
 
     - name: Install/update service with helm
       shell: bash
+      env:
+        ATP_SET_USER: ${{ inputs.atp_storage_username }}
+        ATP_SET_PASS: ${{ inputs.atp_storage_password }}
       # language=bash
       run: |
         # ▶️ ${{inputs.deploy_mode}} ${{inputs.service_name}} with Helm
         template_name=$(basename "${{inputs.path_to_template}}")
-        echo $template_name
+        echo "$template_name"
         cd ${{inputs.repository_name}}/${{inputs.path_to_chart}}
+        extras=()
+        if [[ -n "${ATP_SET_USER}" ]]; then
+          extras+=(--set-string)
+          extras+=("integrationTests.atpReport.atpStorage.username=${ATP_SET_USER}")
+        fi
+        if [[ -n "${ATP_SET_PASS}" ]]; then
+          extras+=(--set-string)
+          extras+=("integrationTests.atpReport.atpStorage.password=${ATP_SET_PASS}")
+        fi
         if [[ "${{inputs.restricted}}" == "false" ]]; then
-          helm ${{inputs.deploy_mode}} ${{inputs.service_name}} . -f $template_name -n ${{inputs.namespace}} --timeout 10m
+          helm ${{inputs.deploy_mode}} ${{inputs.service_name}} . -f "$template_name" -n ${{inputs.namespace}} --timeout 10m "${extras[@]}"
         else
-          helm ${{inputs.deploy_mode}} ${{inputs.service_name}} . -f $template_name -n ${{inputs.namespace}} --timeout 10m --skip-crds
+          helm ${{inputs.deploy_mode}} ${{inputs.service_name}} . -f "$template_name" -n ${{inputs.namespace}} --timeout 10m --skip-crds "${extras[@]}"
         fi
 
     - name: Get docker images
