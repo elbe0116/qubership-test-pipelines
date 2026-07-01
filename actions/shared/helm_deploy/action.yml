@@ -271,6 +271,34 @@ runs:
         chart-version: ${{github.run_number}}.${{github.run_attempt}}.${{github.run_id}}
         default-tag: main
 
+    - name: Align container images for branch builds
+      if: steps.check-release.outputs.is_release == 'false'
+      shell: bash
+      # language=bash
+      run: |
+        # ▶️ Fork dev_build publishes ghcr.io/<owner>/...:<branch_tag>; values.yaml defaults to netcracker:main
+        values_file="${{ inputs.repository_name }}/${{ inputs.path_to_chart }}/values.yaml"
+        tag="${{ steps.replace_slash.outputs.service_branch_updated }}"
+        repo_owner=$(echo "${{ inputs.repository_name }}" | cut -d/ -f1 | tr '[:upper:]' '[:lower:]')
+
+        if [[ ! -f "$values_file" ]]; then
+          echo "::error::values file not found: $values_file"
+          exit 1
+        fi
+
+        if [[ "$repo_owner" != "netcracker" ]]; then
+          echo "Rewriting image registry for fork: netcracker -> ${repo_owner}"
+          sed -i "s|ghcr.io/netcracker/|ghcr.io/${repo_owner}/|g" "$values_file"
+        fi
+
+        echo "Setting ghcr.io/${repo_owner}/* image tags to branch build tag: ${tag}"
+        sed -i -E "s|(ghcr.io/${repo_owner}/[^:\"'[:space:]]+):main|\1:${tag}|g" "$values_file"
+        sed -i -E "s|(ghcr.io/${repo_owner}/[^:\"'[:space:]]+):latest|\1:${tag}|g" "$values_file"
+
+        echo "::group::Container images in values.yaml (after branch align)"
+        grep -E 'ghcr\.io/' "$values_file" | grep -v '^[[:space:]]*#' | head -50 || true
+        echo "::endgroup::"
+
     - name: Install/update service with helm
       shell: bash
       env:
