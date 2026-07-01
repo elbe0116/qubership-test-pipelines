@@ -134,6 +134,8 @@ runs:
               echo "⏳ Some resources are not ready"
               echo "PODS:"
               kubectl get pods -n "${{inputs.namespace}}"
+              chmod +x ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh
+              ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh "${{inputs.namespace}}" 150 || true
               sleep ${{inputs.service_ready_retry_interval}}
             fi
           fi
@@ -148,6 +150,8 @@ runs:
           fi
           if [ "$resources_success" = "false" ]; then
             echo "::error:: ❌ Resources not ready after ${{inputs.service_ready_max_retries}} retries"
+            chmod +x ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh
+            ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh "${{inputs.namespace}}" 500 || true
             echo "ERROR_FLAG=true" >> $GITHUB_ENV
           fi
 
@@ -261,6 +265,8 @@ runs:
               echo "⏳ Some resources are not ready"
               echo "PODS:"
               kubectl get pods -n "${{inputs.namespace}}"
+              chmod +x ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh
+              ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh "${{inputs.namespace}}" 150 || true
               sleep ${{inputs.service_ready_retry_interval}}
             fi
           fi
@@ -275,6 +281,8 @@ runs:
           fi
           if [ "$resources_success" = "false" ]; then
             echo "::error:: ❌ Resources not ready after ${{inputs.service_ready_max_retries}} retries"
+            chmod +x ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh
+            ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh "${{inputs.namespace}}" 500 || true
             echo "ERROR_FLAG=true" >> $GITHUB_ENV
           fi
 
@@ -322,31 +330,11 @@ runs:
       shell: bash
       # language=bash
       run: |
-        # ▶️ When verify times out or tests fail, check_tests.sh often returns 1 without printing logs.
-        # Emit describe + log tail here so GitHub Actions log is usable without cluster access.
         if [[ "${ERROR_FLAG:-false}" != "true" ]]; then
           exit 0
         fi
-        ns="${{ inputs.namespace }}"
-        test_pod=""
-        while read -r pod; do
-          [[ -z "$pod" ]] && continue
-          if [[ "$pod" == *tests* ]]; then
-            test_pod="$pod"
-            break
-          fi
-        done < <(kubectl get pods --no-headers -o custom-columns=":metadata.name" -n "$ns" 2>/dev/null || true)
-        if [[ -z "$test_pod" ]]; then
-          echo "::warning:: No pod with 'tests' in name in namespace $ns"
-          kubectl get pods -n "$ns" -o wide 2>/dev/null || true
-          exit 0
-        fi
-        echo "::group::kubectl describe pod/$test_pod -n $ns"
-        kubectl describe pod "$test_pod" -n "$ns" 2>&1 || true
-        echo "::endgroup::"
-        echo "::group::kubectl logs $test_pod -n $ns (tail 500)"
-        kubectl logs "$test_pod" -n "$ns" --tail=500 2>&1 || true
-        echo "::endgroup::"
+        chmod +x ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh
+        ./qubership-test-pipelines/scripts/dump_integration_test_logs.sh "${{ inputs.namespace }}" 500
 
     - name: Check job status
       shell: bash

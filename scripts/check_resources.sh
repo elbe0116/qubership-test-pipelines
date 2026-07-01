@@ -1,25 +1,50 @@
 check_resources() {
     local namespace="$1"
     local all_ready=true
+    local script_dir
+    script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-    dump_integration_test_log_tail() {
+    is_integration_tests_deployment() {
+        [[ "$1" == *integration-tests* ]]
+    }
+
+    integration_tests_deployment_ok() {
         local ns="$1"
-        local pod
-        while read -r pod; do
-            [[ -z "$pod" ]] && continue
-            if [[ "$pod" != *tests* ]]; then
-                continue
-            fi
-            local phase
-            phase=$(kubectl get pod "$pod" -n "$ns" -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
-            echo "::group::Integration tests pod: $pod (phase=$phase) — kubectl logs --tail=100"
-            kubectl logs "$pod" -n "$ns" --tail=100 2>&1 || echo "(kubectl logs failed or no logs yet)"
-            echo "::endgroup::"
-        done < <(kubectl get pods --no-headers -o custom-columns=":metadata.name" -n "$ns" 2>/dev/null || true)
+        local deployment="$2"
+        local pod phase
+
+        pod=$(kubectl get pods -n "$ns" -l "name=${deployment}" -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || true)
+        if [[ -z "$pod" ]]; then
+            echo "Deployment $deployment: no pod scheduled yet"
+            return 1
+        fi
+
+        phase=$(kubectl get pod "$pod" -n "$ns" -o jsonpath='{.status.phase}' 2>/dev/null || echo "Unknown")
+        case "$phase" in
+            Running|Pending)
+                echo "Deployment $deployment: pod $pod is $phase (0/1 ready until Robot tests finish — OK)"
+                return 0
+                ;;
+            Succeeded)
+                echo "Deployment $deployment: pod $pod Succeeded"
+                return 0
+                ;;
+            *)
+                echo "Deployment $deployment: pod $pod phase=$phase"
+                return 1
+                ;;
+        esac
     }
 
     deployments=$(kubectl get deployments -n "$namespace" -o jsonpath='{.items[*].metadata.name}')
     for deployment in $deployments; do
+        if is_integration_tests_deployment "$deployment"; then
+            if ! integration_tests_deployment_ok "$namespace" "$deployment"; then
+                all_ready=false
+            fi
+            continue
+        fi
+
         ready=$(kubectl get deployment "$deployment" -n "$namespace" -o jsonpath="{.status.readyReplicas}" 2>/dev/null)
         total=$(kubectl get deployment "$deployment" -n "$namespace" -o jsonpath="{.status.replicas}" 2>/dev/null)
         ready=${ready:-0}
@@ -55,12 +80,9 @@ check_resources() {
     done
 
     if [ "$all_ready" = true ]; then
-        #All resources are ready
         return 0
     else
-        #Some resources are not ready — integration-tests runner is often 0/1 until Robot finishes; show log tail each poll
-        dump_integration_test_log_tail "$namespace"
-        #Some resources are not ready
+        bash "$script_dir/dump_integration_test_logs.sh" "$namespace" 150
         return 1
     fi
 }
