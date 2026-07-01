@@ -24,5 +24,16 @@ while read -r pod; do
   kubectl logs "$pod" -n "$namespace" --tail="$tail_lines" 2>&1 \
     || kubectl logs "$pod" -n "$namespace" --tail="$tail_lines" --previous 2>&1 \
     || echo "(no logs yet)"
+  echo "--- ATP secrets mount (file sizes only) ---"
+  kubectl exec "$pod" -n "$namespace" -- sh -c '
+    if [ -d /mnt/secrets/env ]; then
+      ls -la /mnt/secrets/env
+      for f in /mnt/secrets/env/*; do
+        [ -f "$f" ] && echo "$(basename "$f"): $(wc -c < "$f") bytes"
+      done
+    else
+      echo "/mnt/secrets/env not mounted"
+    fi
+  ' 2>&1 || echo "(kubectl exec for secrets mount failed)"
   echo "::endgroup::"
 done < <(kubectl get pods --no-headers -o custom-columns=":metadata.name" -n "$namespace" 2>/dev/null || true)
