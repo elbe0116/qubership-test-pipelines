@@ -312,12 +312,18 @@ runs:
         cd ${{inputs.repository_name}}/${{inputs.path_to_chart}}
         extras=()
         if [[ -n "${ATP_SET_USER}" ]]; then
+          echo "ATP S3 username will be passed to Helm (length ${#ATP_SET_USER})"
           extras+=(--set-string)
           extras+=("integrationTests.atpReport.atpStorage.username=${ATP_SET_USER}")
+        else
+          echo "::warning::ATP S3 username not passed to helm_deploy — atp-storage-secret may be empty"
         fi
         if [[ -n "${ATP_SET_PASS}" ]]; then
+          echo "ATP S3 password will be passed to Helm (length ${#ATP_SET_PASS})"
           extras+=(--set-string)
           extras+=("integrationTests.atpReport.atpStorage.password=${ATP_SET_PASS}")
+        else
+          echo "::warning::ATP S3 password not passed to helm_deploy — atp-storage-secret may be empty"
         fi
         if [[ "${{inputs.restricted}}" == "false" ]]; then
           helm ${{inputs.deploy_mode}} ${{inputs.service_name}} . -f "$template_name" -n ${{inputs.namespace}} --timeout 10m "${extras[@]}"
